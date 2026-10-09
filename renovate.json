@@ -2,7 +2,8 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended",
-    ":semanticCommits"
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests"
   ],
   "pre-commit": {
     "enabled": true
@@ -19,8 +20,7 @@
         "factory\\.talos\\.dev/[^\\s\"]*?[0-9a-f]{64}[/:]v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
         "talos-linux-v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
         "talos_installed_version\\s*=\\s*\"v(?<currentValue>\\d+\\.\\d+\\.\\d+)\"",
-        "Talos Linux v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
-        "Image Factory URL for v(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+        "Talos Linux v(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "depNameTemplate": "siderolabs/talos",
       "datasourceTemplate": "github-releases",
@@ -52,11 +52,35 @@
       "matchStrings": [
         "variable \"cilium_version\" \\{[^}]*?default\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"",
         "Cilium v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
-        "`cilium_version` \\|[^|]*\\|[^|]*\\| `\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"`"
+        "cilium\\\\_version \\|[^|]*\\|[^|]*\\| `\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"`"
       ],
       "depNameTemplate": "cilium",
       "datasourceTemplate": "helm",
       "registryUrlTemplate": "https://helm.cilium.io"
+    },
+    {
+      "description": "Tool versions installed in the workflows",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "TFLINT_VERSION:\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "terraform-linters/tflint",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "description": "terraform-docs installed with go install in the workflows",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/.+\\.ya?ml$/"
+      ],
+      "matchStrings": [
+        "TERRAFORM_DOCS_VERSION:\\s*(?<currentValue>v\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "github.com/terraform-docs/terraform-docs",
+      "datasourceTemplate": "go"
     }
   ],
   "packageRules": [
@@ -116,17 +140,30 @@
     },
     {
       "description": "Development tooling",
-      "matchManagers": [
-        "github-actions",
-        "pre-commit",
-        "pep621"
-      ],
       "semanticCommitType": "ci",
       "groupName": "development tooling",
       "matchUpdateTypes": [
         "minor",
         "patch",
         "digest"
+      ],
+      "matchManagers": [
+        "github-actions",
+        "pre-commit",
+        "pep621"
+      ]
+    },
+    {
+      "description": "Linting tools installed in the workflows belong to the development tooling",
+      "matchDepNames": [
+        "terraform-linters/tflint",
+        "github.com/terraform-docs/terraform-docs"
+      ],
+      "semanticCommitType": "ci",
+      "groupName": "development tooling",
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
       ]
     }
   ]

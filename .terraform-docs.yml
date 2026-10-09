@@ -1,0 +1,28 @@
+# Generates the inputs and outputs of README.md, run by the terraform_docs pre-commit hook
+formatter: markdown table
+
+sections:
+  show:
+    - inputs
+    - outputs
+
+output:
+  file: README.md
+  mode: inject
+  template: |-
+    <!-- BEGIN_TF_DOCS -->
+    {{ .Content }}
+    <!-- END_TF_DOCS -->
+
+sort:
+  enabled: false
+
+settings:
+  anchor: false
+  default: true
+  escape: true
+  hide-empty: true
+  html: false
+  required: true
+  sensitive: true
+  type: true
