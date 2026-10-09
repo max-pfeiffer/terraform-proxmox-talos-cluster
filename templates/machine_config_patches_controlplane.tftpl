@@ -1,0 +1,35 @@
+machine:
+  features:
+    hostDNS:
+      forwardKubeDNSToHost: false
+  install:
+    disk: ${install_disk}
+    image: ${install_image}
+  network:
+    nameservers:
+%{ for dns in dns_servers ~}
+      - ${dns}
+%{ endfor ~}
+    interfaces:
+      - deviceSelector:
+          physical: true
+        addresses:
+          - ${ip_address}
+        routes:
+          - network: ${network}
+            gateway: ${network_gateway}
+        vip:
+          ip: ${vip_shared_ip}
+cluster:
+  allowSchedulingOnControlPlanes: ${allow_scheduling_on_control_planes}
+  network:
+    cni:
+      name: none
+  proxy:
+    disabled: true
+  inlineManifests:
+%{ for manifest in inline_manifests ~}
+    - name: ${manifest.name}
+      contents: |
+        ${indent(8, manifest.contents)}
+%{ endfor ~}
