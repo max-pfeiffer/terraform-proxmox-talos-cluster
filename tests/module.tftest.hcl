@@ -167,3 +167,64 @@ run "rejects_invalid_vip" {
 
   expect_failures = [var.cluster_vip_shared_ip]
 }
+
+run "stable_vm_names" {
+  command = plan
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.kubernetes_control_plane["192.168.10.101"].name == "test-cp-0"
+    error_message = "The hostname must be used as VM name."
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.kubernetes_control_plane["192.168.10.102"].name == "test-control-plane-192-168-10-102"
+    error_message = "Without hostname the VM name must be derived from the cluster name and the node's IP."
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.kubernetes_worker["192.168.10.103"].name == "test-worker-192-168-10-103"
+    error_message = "Without hostname the VM name must be derived from the cluster name and the node's IP."
+  }
+}
+
+run "default_route_via_gateway" {
+  command = plan
+
+  assert {
+    condition     = strcontains(data.talos_machine_configuration.controlplane["192.168.10.101"].config_patches[0], "- network: 0.0.0.0/0\n            gateway: 192.168.10.1")
+    error_message = "Control plane nodes must get a default route via the gateway."
+  }
+
+  assert {
+    condition     = strcontains(data.talos_machine_configuration.worker["192.168.10.103"].config_patches[0], "- network: 0.0.0.0/0\n            gateway: 192.168.10.1")
+    error_message = "Worker nodes must get a default route via the gateway."
+  }
+}
+
+run "bootstrap_node_sorted_numerically" {
+  command = plan
+
+  variables {
+    node_data = {
+      controlplanes = {
+        "192.168.10.10" = {
+          install_disk  = "/dev/vda"
+          install_image = "factory.talos.dev/nocloud-installer/schematic:v1.13.8"
+        }
+        "192.168.10.9" = {
+          install_disk  = "/dev/vda"
+          install_image = "factory.talos.dev/nocloud-installer/schematic:v1.13.8"
+        }
+        "192.168.10.100" = {
+          install_disk  = "/dev/vda"
+          install_image = "factory.talos.dev/nocloud-installer/schematic:v1.13.8"
+        }
+      }
+    }
+  }
+
+  assert {
+    condition     = talos_cluster.this.node == "192.168.10.9" && talos_cluster_kubeconfig.this.node == "192.168.10.9"
+    error_message = "The bootstrap node must be the numerically lowest control plane IP."
+  }
+}

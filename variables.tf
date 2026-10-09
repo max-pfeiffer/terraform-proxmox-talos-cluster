@@ -70,7 +70,9 @@ variable "node_data" {
   description = <<-EOT
     Control plane and worker nodes, keyed by the node's IPv4 address. install_disk and install_image are required,
     hostname, cpu_cores, memory (MB), disk_size (GB) and proxmox_node are optional per node.
-    Without a hostname Talos Linux generates one itself. Without proxmox_node the VM is created on proxmox_target_node.
+    The hostname is also the VM name. Without a hostname Talos Linux generates one itself and the VM is named
+    <cluster_name>-control-plane-<ip> or <cluster_name>-worker-<ip>. Without proxmox_node the VM is created on
+    proxmox_target_node.
   EOT
   type = object({
     controlplanes = map(object({
