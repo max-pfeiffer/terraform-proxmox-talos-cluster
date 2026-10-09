@@ -24,6 +24,9 @@ locals {
 }
 
 module "talos_cluster" {
+  # Outside of this repository use the registry instead:
+  # source  = "max-pfeiffer/talos-cluster/proxmox"
+  # version = "<version>"
   source = "../.."
 
   # Proxmox

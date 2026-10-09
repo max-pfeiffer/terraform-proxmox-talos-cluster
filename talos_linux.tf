@@ -26,7 +26,6 @@ data "talos_machine_configuration" "controlplane" {
         install_image                      = each.value.install_image
         dns_servers                        = var.domain_name_servers
         ip_address                         = "${each.key}/${local.network_prefix_length}"
-        network                            = var.network
         network_gateway                    = var.network_gateway
         vip_shared_ip                      = var.cluster_vip_shared_ip
         allow_scheduling_on_control_planes = var.allow_scheduling_on_control_planes
@@ -58,7 +57,6 @@ data "talos_machine_configuration" "worker" {
         install_image   = each.value.install_image
         dns_servers     = var.domain_name_servers
         ip_address      = "${each.key}/${local.network_prefix_length}"
-        network         = var.network
         network_gateway = var.network_gateway
       }),
     ],
@@ -114,18 +112,30 @@ resource "talos_machine" "worker" {
 # upgrade-k8s procedure, which upgrades the control plane components and kubelets
 # sequentially with health gating. Bootstrapping is idempotent, so re-creating this
 # resource against an already running cluster is a no-op followed by a health check.
+#
+# The node is chosen once at creation and then ignored, so adding control plane nodes never moves it.
+# After removing that node, move it explicitly with
+# tofu apply -replace=<module>.talos_cluster.this -replace=<module>.talos_cluster_kubeconfig.this
 resource "talos_cluster" "this" {
   depends_on = [talos_machine.controlplane]
 
   client_configuration = talos_machine_secrets.this.client_configuration
-  node                 = keys(var.node_data.controlplanes)[0]
+  node                 = local.bootstrap_node
   control_plane_nodes  = keys(var.node_data.controlplanes)
   kubernetes_version   = var.kubernetes_version
+
+  lifecycle {
+    ignore_changes = [node]
+  }
 }
 
 resource "talos_cluster_kubeconfig" "this" {
   depends_on           = [talos_cluster.this]
   client_configuration = talos_machine_secrets.this.client_configuration
-  node                 = keys(var.node_data.controlplanes)[0]
+  node                 = local.bootstrap_node
   endpoint             = var.cluster_vip_shared_ip
+
+  lifecycle {
+    ignore_changes = [node]
+  }
 }

@@ -42,7 +42,8 @@ provider "proxmox" {
 }
 
 module "talos_cluster" {
-  source = "git::https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster.git?ref=v0.1.0" # x-release-please-version
+  source  = "max-pfeiffer/talos-cluster/proxmox"
+  version = "0.1.0" # x-release-please-version
 
   proxmox_target_node    = "your-proxmox-node"
   proxmox_storage_device = "local-lvm"
@@ -80,14 +81,26 @@ output "kubeconfig" {
   sensitive = true
 }
 ```
-Nodes in `node_data` are keyed by their IPv4 address. `hostname`, `cpu_cores`, `memory` (MB), `disk_size` (GB) and
-`proxmox_node` are optional per node. Without a `hostname` Talos Linux generates one itself, without a `proxmox_node`
-the virtual machine is created on `proxmox_target_node`.
+The module is also available directly from GitHub, e.g. for unreleased changes:
+`source = "git::https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster.git?ref=v0.1.0"`. <!-- x-release-please-version -->
 
-Complete examples are in the [examples](examples) directory:
-* [basic](examples/basic): one control plane and one worker node
-* [advanced](examples/advanced): highly available control plane spread across a Proxmox cluster, VLAN, config
-  patches for registry mirrors and additional Cilium Helm values
+Nodes in `node_data` are keyed by their IPv4 address. `hostname`, `cpu_cores`, `memory` (MB), `disk_size` (GB) and
+`proxmox_node` are optional per node. The `hostname` is also used as virtual machine name. Without a `hostname` Talos
+Linux generates one itself and the virtual machine is named `<cluster_name>-control-plane-<ip>` or
+`<cluster_name>-worker-<ip>`, e.g. `your-cluster-name-worker-192-168-10-102`. Without a `proxmox_node` the virtual
+machine is created on `proxmox_target_node`.
+
+The control plane node with the lowest IP address is used to bootstrap the cluster, run Kubernetes upgrades and
+retrieve the kubeconfig. It is chosen once on creation, adding control plane nodes later does not change it. If you
+remove that node, move this role to another control plane node:
+```shell
+tofu apply -replace=module.talos_cluster.talos_cluster.this -replace=module.talos_cluster.talos_cluster_kubeconfig.this
+```
+
+Complete examples are in the [examples](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/tree/main/examples) directory:
+* [basic](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/tree/main/examples/basic): one control plane and one worker node
+* [advanced](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/tree/main/examples/advanced): highly available control plane spread across a Proxmox cluster, VLAN,
+  config patches for registry mirrors and additional Cilium Helm values
 
 Apply the configuration and grab the kube config file:
 ```shell
@@ -119,7 +132,7 @@ You might need to wait a bit until the nodes come up.
 | talos\_linux\_iso\_image\_filename | Filename of the Talos ISO image for initially booting the VM | `string` | `"talos-linux-v1.13.8-qemu-guest-agent-amd64.iso"` | no |
 | cluster\_name | A name to provide for the Talos cluster, it is also used as prefix for the virtual machine names | `string` | `"talos"` | no |
 | cluster\_vip\_shared\_ip | Shared virtual IP address for control plane nodes, used as Kubernetes API endpoint | `string` | n/a | yes |
-| node\_data | Control plane and worker nodes, keyed by the node's IPv4 address. install\_disk and install\_image are required, hostname, cpu\_cores, memory (MB), disk\_size (GB) and proxmox\_node are optional per node. Without a hostname Talos Linux generates one itself. Without proxmox\_node the VM is created on proxmox\_target\_node. | ```object({ controlplanes = map(object({ install_disk = string install_image = string hostname = optional(string) cpu_cores = optional(number, 2) memory = optional(number, 8192) disk_size = optional(number, 50) proxmox_node = optional(string) })) workers = optional(map(object({ install_disk = string install_image = string hostname = optional(string) cpu_cores = optional(number, 2) memory = optional(number, 16384) disk_size = optional(number, 50) proxmox_node = optional(string) })), {}) })``` | n/a | yes |
+| node\_data | Control plane and worker nodes, keyed by the node's IPv4 address. install\_disk and install\_image are required, hostname, cpu\_cores, memory (MB), disk\_size (GB) and proxmox\_node are optional per node. The hostname is also the VM name. Without a hostname Talos Linux generates one itself and the VM is named <cluster\_name>-control-plane-<ip> or <cluster\_name>-worker-<ip>. Without proxmox\_node the VM is created on proxmox\_target\_node. | ```object({ controlplanes = map(object({ install_disk = string install_image = string hostname = optional(string) cpu_cores = optional(number, 2) memory = optional(number, 8192) disk_size = optional(number, 50) proxmox_node = optional(string) })) workers = optional(map(object({ install_disk = string install_image = string hostname = optional(string) cpu_cores = optional(number, 2) memory = optional(number, 16384) disk_size = optional(number, 50) proxmox_node = optional(string) })), {}) })``` | n/a | yes |
 | network | Network for all nodes in CIDR notation, its prefix length is used for the node IP addresses | `string` | n/a | yes |
 | network\_gateway | Network gateway for all nodes | `string` | n/a | yes |
 | domain\_name\_servers | DNS servers for all nodes | `list(string)` | n/a | yes |
@@ -215,7 +228,7 @@ for the multi-year discussion on graceful, node-by-node upgrades.
 The module follows [Semantic Versioning](https://semver.org/), releases are tagged `vX.Y.Z` and created by
 [release-please](https://github.com/googleapis/release-please) from [Conventional Commits](https://www.conventionalcommits.org/).
 While the module is below `1.0.0`, breaking changes bump the minor version and everything else the patch version.
-Pin the module to an exact tag with `?ref=` and read the [changelog](CHANGELOG.md) before upgrading.
+Pin the module to an exact `version` and read the [changelog](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/blob/main/CHANGELOG.md) before upgrading.
 
 A change is breaking (`feat!:` or a `BREAKING CHANGE:` footer) if it changes infrastructure that existing users get
 on their next `tofu apply` without touching their configuration, in particular:
@@ -229,8 +242,12 @@ on their next `tofu apply` without touching their configuration, in particular:
 Install [uv](https://docs.astral.sh/uv/getting-started/installation/), [OpenTofu](https://opentofu.org/docs/intro/install/),
 [TFLint](https://github.com/terraform-linters/tflint) and [terraform-docs](https://terraform-docs.io/), e.g. on macOS:
 ```shell
-brew install uv opentofu tflint terraform-docs
+brew install uv opentofu terraform-docs terraform-linters/tap/tflint
 ```
+TFLint is not available in Homebrew's core repository, it is installed from the
+[official TFLint tap](https://github.com/terraform-linters/homebrew-tap). For other platforms see the
+[TFLint installation instructions](https://github.com/terraform-linters/tflint#installation).
+
 Sync dependencies and install the git hooks:
 ```shell
 uv sync
