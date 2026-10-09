@@ -1,3 +1,8 @@
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+  - pre-push
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -6,16 +11,50 @@ repos:
       - id: detect-private-key
       - id: check-added-large-files
         args: ['--maxkb=2048']
-  - repo: https://github.com/AleksaC/terraform-py
-    rev: v1.15.7
+  # Requires tofu, tflint and terraform-docs on the PATH
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.109.2
     hooks:
-      - id: tf-fmt
+      - id: terraform_fmt
+        args:
+          - --hook-config=--tf-path=tofu
+      - id: terraform_tflint
+        args:
+          - --args=--config=__GIT_WORKING_DIR__/.tflint.hcl
+      - id: terraform_docs
+        # Only the module itself is documented, not the examples
+        files: ^[^/]+\.tf$
+        args:
+          - --hook-config=--tf-path=tofu
+          - --args=--config=.terraform-docs.yml
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.2
     hooks:
       - id: gitleaks
+      # The gitleaks hook only scans staged changes, this scans the commits being pushed or,
+      # in CI, the commits of a pull request
+      - id: gitleaks
+        alias: gitleaks-commits
+        name: Detect hardcoded secrets in commits
+        entry: sh -c 'gitleaks git --redact --verbose --log-opts="$PRE_COMMIT_FROM_REF..$PRE_COMMIT_TO_REF"'
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.16.3
     hooks:
       - id: commitizen
       - id: commitizen-branch
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      - id: actionlint
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: v1.30.1
+    hooks:
+      - id: zizmor
+  - repo: https://github.com/renovatebot/pre-commit-hooks
+    rev: 44.148.4
+    hooks:
+      - id: renovate-config-validator
+        args: [--strict]

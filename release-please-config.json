@@ -1,9 +1,15 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "release-type": "terraform-module",
-  "include-v-in-tag": false,
-  "initial-version": "1.0.0",
+  "include-v-in-tag": true,
+  "initial-version": "0.1.0",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": false,
   "packages": {
-    ".": {}
+    ".": {
+      "extra-files": [
+        "README.md"
+      ]
+    }
   }
 }

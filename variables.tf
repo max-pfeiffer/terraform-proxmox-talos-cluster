@@ -29,15 +29,13 @@ variable "vm_cpu_type" {
 
 # Talos Linux
 variable "talos_version" {
-  description = "Talos machine configuration contract version. Pin it to the version the cluster was created with, it is independent of the installed Talos version which is driven by `install_image`."
+  description = "Talos machine configuration contract version. Pin it to the version the cluster was created with, it is independent of the installed Talos version which is driven by `install_image`. Required so that a module upgrade never changes the contract of an existing cluster."
   type        = string
-  default     = "1.13.8"
 }
 
 variable "kubernetes_version" {
-  description = "Kubernetes version of the cluster, changing it runs Talos' upgrade-k8s procedure"
+  description = "Kubernetes version of the cluster, changing it runs Talos' upgrade-k8s procedure. Required so that a module upgrade never upgrades Kubernetes implicitly."
   type        = string
-  default     = "1.36.3"
 }
 
 variable "talos_linux_iso_image_url" {

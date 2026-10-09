@@ -1,5 +1,5 @@
 [project]
-name = "proxmox-talos-opentofu-module"
+name = "terraform-proxmox-talos-cluster"
 version = "0.0.0"
 description = "Development tooling for the Proxmox Talos OpenTofu module"
 requires-python = ">=3.14"

@@ -4,40 +4,120 @@ on:
   pull_request:
     branches:
       - main
-    paths-ignore:
-      - "README.md"
+  push:
+    branches:
+      - main
+  # Provider, OpenTofu and tool versions float within their constraints, catch upstream
+  # breakage before users do
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions: {}
+
+env:
+  TFLINT_VERSION: v0.64.0
+  TERRAFORM_DOCS_VERSION: v0.24.0
 
 jobs:
   pre-commit:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          # Full history for checking the commits of the pull request
+          fetch-depth: 0
+          persist-credentials: false
       - name: Setup uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
         with:
           python-version: "3.14"
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1.0.8
+        with:
+          tofu_wrapper: false
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@6ffdbaa3be476b3431f7275c26966ef32ff60337 # v6.3.2
+        with:
+          tflint_version: ${{ env.TFLINT_VERSION }}
+      - name: Setup terraform-docs
+        # go install verifies the module against the Go checksum database
+        run: |
+          go install "github.com/terraform-docs/terraform-docs@${TERRAFORM_DOCS_VERSION}"
+          echo "$(go env GOPATH)/bin" >> "${GITHUB_PATH}"
       - name: Create Virtual environment
         run: uv sync
       - name: Run pre-commit hooks
         run: uv run pre-commit run --all-files --show-diff-on-failure
+      # release-please derives versions and the changelog from the commit messages. Both
+      # hooks only run at the pre-push stage, which run --all-files skips.
+      - name: Check commit messages
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: uv run pre-commit run commitizen-branch --hook-stage pre-push --from-ref "${BASE_SHA}" --to-ref "${HEAD_SHA}"
+      - name: Scan commits for secrets
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: uv run pre-commit run gitleaks-commits --hook-stage pre-push --from-ref "${BASE_SHA}" --to-ref "${HEAD_SHA}"
 
-  validate:
+  tofu:
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
     strategy:
+      fail-fast: false
       matrix:
         directory:
           - "."
           - examples/basic
           - examples/advanced
+        # The minimum version of versions.tf and the latest release
+        tofu-version:
+          - "1.11.x"
+          - latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
       - name: Setup OpenTofu
-        uses: opentofu/setup-opentofu@v1
+        uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1.0.8
+        with:
+          tofu_version: ${{ matrix.tofu-version }}
+          tofu_wrapper: false
       - name: Initialize
         working-directory: ${{ matrix.directory }}
         run: tofu init -backend=false -input=false
       - name: Validate
         working-directory: ${{ matrix.directory }}
         run: tofu validate
+      - name: Test
+        if: matrix.directory == '.'
+        run: tofu test
+
+  # Single required status check for branch protection, independent of the matrix
+  ci-success:
+    if: always()
+    needs:
+      - pre-commit
+      - tofu
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - name: Check job results
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in ${RESULTS}; do
+            if [ "${result}" != "success" ]; then
+              echo "A required job finished with: ${result}"
+              exit 1
+            fi
+          done
