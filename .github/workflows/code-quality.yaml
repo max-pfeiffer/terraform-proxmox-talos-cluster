@@ -13,6 +13,9 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v6
+        with:
+          # Full history for checking the commit messages of the pull request
+          fetch-depth: 0
       - name: Setup uv
         uses: astral-sh/setup-uv@v7
         with:
@@ -21,6 +24,13 @@ jobs:
         run: uv sync
       - name: Run pre-commit hooks
         run: uv run pre-commit run --all-files --show-diff-on-failure
+      # release-please derives versions and the changelog from the commit messages, the
+      # commitizen-branch hook only runs at the pre-push stage which run --all-files skips
+      - name: Check commit messages
+        run: >-
+          uv run pre-commit run commitizen-branch --hook-stage pre-push
+          --from-ref ${{ github.event.pull_request.base.sha }}
+          --to-ref ${{ github.event.pull_request.head.sha }}
 
   validate:
     runs-on: ubuntu-24.04

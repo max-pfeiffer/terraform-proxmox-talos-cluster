@@ -1,0 +1,133 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits"
+  ],
+  "pre-commit": {
+    "enabled": true
+  },
+  "customManagers": [
+    {
+      "description": "Installed Talos Linux version: Image Factory ISO and installer images, ISO filename and docs. talos_version is the machine configuration contract and is deliberately not matched.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/\\.tf$/",
+        "/(^|/)README\\.md$/"
+      ],
+      "matchStrings": [
+        "factory\\.talos\\.dev/[^\\s\"]*?[0-9a-f]{64}[/:]v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "talos-linux-v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "talos_installed_version\\s*=\\s*\"v(?<currentValue>\\d+\\.\\d+\\.\\d+)\"",
+        "Talos Linux v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "Image Factory URL for v(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "siderolabs/talos",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "description": "Kubernetes version in the examples and docs",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)examples/.+\\.tf$/",
+        "/(^|/)README\\.md$/"
+      ],
+      "matchStrings": [
+        "kubernetes_version\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"",
+        "Kubernetes v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "Ready\\s+\\S+\\s+\\S+\\s+v(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "kubernetes/kubernetes",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    },
+    {
+      "description": "Cilium Helm chart version: module default and docs",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^variables\\.tf$/",
+        "/^README\\.md$/"
+      ],
+      "matchStrings": [
+        "variable \"cilium_version\" \\{[^}]*?default\\s*=\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"",
+        "Cilium v(?<currentValue>\\d+\\.\\d+\\.\\d+)",
+        "`cilium_version` \\|[^|]*\\|[^|]*\\| `\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\"`"
+      ],
+      "depNameTemplate": "cilium",
+      "datasourceTemplate": "helm",
+      "registryUrlTemplate": "https://helm.cilium.io"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Changing the module's Talos ISO or Cilium defaults changes existing clusters, which is a breaking change",
+      "matchDepNames": [
+        "siderolabs/talos",
+        "cilium"
+      ],
+      "commitMessagePrefix": "feat(deps)!:"
+    },
+    {
+      "description": "Group all Talos version references into one pull request",
+      "matchDepNames": [
+        "siderolabs/talos"
+      ],
+      "groupName": "Talos Linux"
+    },
+    {
+      "description": "Kubernetes minor versions must be supported by the Talos version, upgrade them deliberately",
+      "matchDepNames": [
+        "kubernetes/kubernetes"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Kubernetes version only appears in the examples and docs",
+      "matchDepNames": [
+        "kubernetes/kubernetes"
+      ],
+      "semanticCommitType": "docs"
+    },
+    {
+      "description": "Module provider constraints: only widen them when a release falls outside, raising the minimum is a breaking change",
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchFileNames": [
+        "versions.tf"
+      ],
+      "rangeStrategy": "replace",
+      "commitMessagePrefix": "feat(deps)!:"
+    },
+    {
+      "description": "Exact provider versions of the examples",
+      "matchManagers": [
+        "terraform"
+      ],
+      "matchFileNames": [
+        "examples/**"
+      ],
+      "groupName": "example providers"
+    },
+    {
+      "description": "Development tooling",
+      "matchManagers": [
+        "github-actions",
+        "pre-commit",
+        "pep621"
+      ],
+      "semanticCommitType": "ci",
+      "groupName": "development tooling",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ]
+    }
+  ]
+}

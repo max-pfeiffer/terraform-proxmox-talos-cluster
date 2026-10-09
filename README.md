@@ -1,6 +1,6 @@
 [![OpenTofu](https://img.shields.io/badge/OpenTofu-FFDA18?logo=opentofu&logoColor=black)](https://opentofu.org/)
-[![Code quality](https://github.com/max-pfeiffer/proxmox-talos-opentofu-module/actions/workflows/code-quality.yaml/badge.svg)](https://github.com/max-pfeiffer/proxmox-talos-opentofu-module/actions/workflows/code-quality.yaml)
-[![Release](https://github.com/max-pfeiffer/proxmox-talos-opentofu-module/actions/workflows/release.yaml/badge.svg)](https://github.com/max-pfeiffer/proxmox-talos-opentofu-module/actions/workflows/release.yaml)
+[![Code quality](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/actions/workflows/code-quality.yaml/badge.svg)](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/actions/workflows/code-quality.yaml)
+[![Release](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/actions/workflows/release.yaml/badge.svg)](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/actions/workflows/release.yaml)
 
 # Proxmox Talos OpenTofu Module
 An [OpenTofu](https://opentofu.org/) module which provisions a turnkey Kubernetes cluster with
@@ -42,10 +42,13 @@ provider "proxmox" {
 }
 
 module "talos_cluster" {
-  source = "git::https://github.com/max-pfeiffer/proxmox-talos-opentofu-module.git?ref=1.0.0"
+  source = "git::https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster.git?ref=v0.1.0" # x-release-please-version
 
   proxmox_target_node    = "your-proxmox-node"
   proxmox_storage_device = "local-lvm"
+
+  talos_version      = "1.13.8"
+  kubernetes_version = "1.36.3"
 
   cluster_name          = "your-cluster-name"
   cluster_vip_shared_ip = "192.168.10.100"
@@ -107,8 +110,8 @@ You might need to wait a bit until the nodes come up.
 | `proxmox_iso_datastore` | Proxmox datastore the Talos Linux ISO image is downloaded to | `string` | `"local"` |
 | `proxmox_network_bridge` | Proxmox network bridge the virtual machines are attached to | `string` | `"vmbr0"` |
 | `vm_cpu_type` | CPU type emulated for the virtual machines | `string` | `"host"` |
-| `talos_version` | Talos machine configuration contract version, see [Upgrading Talos](#upgrading-talos) | `string` | `"1.13.8"` |
-| `kubernetes_version` | Kubernetes version of the cluster | `string` | `"1.36.3"` |
+| `talos_version` | Talos machine configuration contract version, see [Upgrading Talos](#upgrading-talos) | `string` | required |
+| `kubernetes_version` | Kubernetes version of the cluster, see [Upgrading Kubernetes](#upgrading-kubernetes) | `string` | required |
 | `talos_linux_iso_image_url` | URL of the Talos ISO image for initially booting the VMs | `string` | Image Factory URL for v1.13.8 with QEMU guest agent |
 | `talos_linux_iso_image_filename` | Filename of the Talos ISO image on Proxmox | `string` | `"talos-linux-v1.13.8-qemu-guest-agent-amd64.iso"` |
 | `cluster_name` | Name of the Talos cluster, also used as prefix for the VM names | `string` | `"talos"` |
@@ -203,6 +206,20 @@ for the multi-year discussion on graceful, node-by-node upgrades.
 4. A plain `tofu apply` is safe here — `talos_cluster` does the sequencing and health gating itself,
    so `-parallelism=1` is not needed for this step.
 
+## Versioning
+The module follows [Semantic Versioning](https://semver.org/), releases are tagged `vX.Y.Z` and created by
+[release-please](https://github.com/googleapis/release-please) from [Conventional Commits](https://www.conventionalcommits.org/).
+While the module is below `1.0.0`, breaking changes bump the minor version and everything else the patch version.
+Pin the module to an exact tag with `?ref=` and read the [changelog](CHANGELOG.md) before upgrading.
+
+A change is breaking (`feat!:` or a `BREAKING CHANGE:` footer) if it changes infrastructure that existing users get
+on their next `tofu apply` without touching their configuration, in particular:
+* changing the default of any version input, e.g. `cilium_version`, `talos_linux_iso_image_url` or the bundled
+  Gateway API CRDs
+* removing or renaming inputs or outputs, adding required inputs or changing their types
+* changing resource addresses without `moved` blocks
+* raising the minimum OpenTofu or provider versions
+
 ## Development
 [Install uv](https://docs.astral.sh/uv/getting-started/installation/) and sync dependencies:
 ```shell
@@ -212,6 +229,8 @@ Install git hooks:
 ```shell
 pre-commit install --hook-type commit-msg --hook-type pre-commit --hook-type pre-push
 ```
+Commit messages and pull request titles must follow [Conventional Commits](https://www.conventionalcommits.org/),
+both are checked in CI. Pull requests are squash merged with their title as commit message.
 Validate the module and the examples:
 ```shell
 tofu init -backend=false && tofu validate

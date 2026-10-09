@@ -4,6 +4,10 @@ module "talos_cluster" {
   proxmox_target_node    = "your-proxmox-node"
   proxmox_storage_device = "local-lvm"
 
+  # talos_version is the machine configuration contract, pin it to the version the cluster was created with.
+  talos_version      = "1.13.8"
+  kubernetes_version = "1.36.3"
+
   cluster_name          = "your-cluster-name"
   cluster_vip_shared_ip = "192.168.10.100"
 
