@@ -24,7 +24,14 @@ locals {
 }
 
 module "talos_cluster" {
+  # Outside of this repository use the registry instead:
+  # source  = "max-pfeiffer/talos-cluster/proxmox"
+  # version = "<version>"
   source = "../.."
+
+  providers = {
+    helm = helm.render
+  }
 
   # Proxmox
   proxmox_target_node    = "pve-0"
