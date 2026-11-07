@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.6.0](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/compare/v0.5.0...v0.6.0) (2026-11-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* **proxmox-provider:** updated proxmox provider
+
+### Miscellaneous Chores
+
+* **proxmox-provider:** updated proxmox provider ([4387418](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/commit/4387418dbc03af1223e59e769685f242960de007))
+
 ## [0.5.0](https://github.com/max-pfeiffer/terraform-proxmox-talos-cluster/compare/v0.4.0...v0.5.0) (2026-10-31)
 
 
