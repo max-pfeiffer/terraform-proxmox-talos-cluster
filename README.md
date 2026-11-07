@@ -108,7 +108,7 @@ root module, a non-default configuration can be passed with the module's `provid
 `providers = { proxmox = proxmox.dc2 }`.
 
 The `bpg/proxmox` and `siderolabs/talos` provider versions are constrained to a single minor version, e.g.
-`~> 0.119.0`, because pre-1.0 providers ship breaking changes in minor releases. If your root module uses these
+`~> 0.120.0`, because pre-1.0 providers ship breaking changes in minor releases. If your root module uses these
 providers elsewhere, it must use the same minor version. A module release bumping a provider minor version requires
 you to bump it as well.
 
